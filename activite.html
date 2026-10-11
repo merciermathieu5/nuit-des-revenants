@@ -1374,28 +1374,48 @@ function verifierDocsEnLigne(){
   DOCUMENTS.forEach(d=>{ docsEnLigne[d.id]=false;
     fetch(d.fichier,{method:"HEAD"}).then(r=>{ docsEnLigne[d.id] = r.ok && /pdf/i.test(r.headers.get("content-type")||""); }).catch(()=>{}); });
 }
-function urlDocument(id){
-  if(urlsDocuments[id]) return urlsDocuments[id];
+const blobsDocuments = {};
+function blobDocument(id){
+  if(blobsDocuments[id]) return blobsDocuments[id];
   const b64 = (typeof PDF_DOCUMENTS!=="undefined" && PDF_DOCUMENTS[id]) || "";
   if(!b64) return null;
   try{
     const bin = atob(b64), oct = new Uint8Array(bin.length);
     for(let i=0;i<bin.length;i++) oct[i] = bin.charCodeAt(i);
-    return urlsDocuments[id] = URL.createObjectURL(new Blob([oct], {type:"application/pdf"}));
+    return blobsDocuments[id] = new Blob([oct], {type:"application/pdf"});
   }catch(e){ return null; }
 }
-function telechargerDocument(d){
+function urlDocument(id){
+  if(urlsDocuments[id]) return urlsDocuments[id];
+  const b = blobDocument(id);
+  return b ? (urlsDocuments[id] = URL.createObjectURL(b)) : null;
+}
+/* Dans l'aperçu claude.ai, un téléchargement passe par la permission « downloads » de l'artefact.
+   Ailleurs (site, fichier hors ligne), window.claude n'existe pas et rien ne change. */
+let telechargeurArtefact = null;
+try{ if(window.claude && typeof window.claude.use==="function") window.claude.use("downloads").then(n=>{ telechargeurArtefact=n; }).catch(()=>{}); }catch(e){}
+function telechargerDocument(d, etat, avant){
+  const dit = t=>{ if(etat) etat((avant||"")+t); };
+  if(telechargeurArtefact){
+    const b = blobDocument(d.id); if(!b) return false;
+    telechargeurArtefact.save({filename:d.fichier, data:b})
+      .then(()=>dit("Téléchargement lancé : "+d.fichier+"."))
+      .catch(e=>dit(e && e.code==="declined" ? "Téléchargement annulé." : "Le téléchargement n'est pas offert ici."));
+    return true;
+  }
   const u = urlDocument(d.id); if(!u) return false;
   const a = document.createElement("a"); a.href = u; a.download = d.fichier;
   document.body.appendChild(a); a.click(); a.remove();
+  dit("Téléchargement lancé : "+d.fichier+".");
   return true;
 }
-function ouvrirDocument(d){
-  const u = docsEnLigne[d.id] ? d.fichier : urlDocument(d.id); if(!u) return null;
+function ouvrirDocument(d, etat){
+  if(telechargeurArtefact) return telechargerDocument(d, etat);   /* aperçu claude.ai : pas de nouvel onglet */
+  const u = docsEnLigne[d.id] ? d.fichier : urlDocument(d.id); if(!u) return false;
   let w = null;
   try{ w = window.open(u, "_blank"); }catch(e){}
-  if(w) return "ouvert";
-  return telechargerDocument(d) ? "telecharge" : null;   /* nouvel onglet bloqué : on télécharge plutôt */
+  if(w){ if(etat) etat(d.titre+" : ouvert dans un nouvel onglet."); return true; }
+  return telechargerDocument(d, etat, "Nouvel onglet bloqué. ");   /* on télécharge plutôt */
 }
 function documents(){
   if($(".documents")){ $(".documents").remove(); return; }
@@ -1409,14 +1429,8 @@ function documents(){
   document.body.appendChild(d);
   const etat = t=>{ const e=$("#etatDocs"); if(e) e.textContent=t; };
   const trouver = id=>DOCUMENTS.find(x=>x.id===id);
-  d.querySelectorAll("[data-ouvrir]").forEach(b=>b.onclick=()=>{
-    const x=trouver(b.dataset.ouvrir), r=ouvrirDocument(x);
-    etat(r==="ouvert" ? x.titre+" : ouvert dans un nouvel onglet." : r==="telecharge" ? "Le navigateur a bloqué le nouvel onglet : "+x.fichier+" a été téléchargé." : "Ce document est introuvable dans ce fichier.");
-  });
-  d.querySelectorAll("[data-telecharger]").forEach(b=>b.onclick=()=>{
-    const x=trouver(b.dataset.telecharger);
-    etat(telechargerDocument(x) ? "Téléchargement lancé : "+x.fichier+"." : "Ce document est introuvable dans ce fichier.");
-  });
+  d.querySelectorAll("[data-ouvrir]").forEach(b=>b.onclick=()=>{ if(!ouvrirDocument(trouver(b.dataset.ouvrir), etat)) etat("Ce document est introuvable dans ce fichier."); });
+  d.querySelectorAll("[data-telecharger]").forEach(b=>b.onclick=()=>{ if(!telechargerDocument(trouver(b.dataset.telecharger), etat)) etat("Ce document est introuvable dans ce fichier."); });
   $("#fermeDocs").onclick=()=>d.remove();
   d.onclick=e=>{ if(e.target===d) d.remove(); };
   try{ $("#fermeDocs").focus(); }catch(e){}
