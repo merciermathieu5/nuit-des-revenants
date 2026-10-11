@@ -1,4 +1,4 @@
-# La Nuit des Revenants
+# La nuit des revenants
 
 Enquête-quiz d'Halloween sur les légendes du Québec, pour le TBI et un carnet d'enquête par équipe.
 
