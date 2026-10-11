@@ -10,7 +10,7 @@ Enquête-quiz d'Halloween sur les légendes du Québec, pour le TBI et un carnet
 - `activite.html` : l'activité, en un seul fichier qui fonctionne aussi hors ligne (Chrome ou Edge). Le bouton Documents, en bas de l'écran, donne accès aux trois PDF en tout temps.
 - `carnet-enquete.pdf` : le carnet d'enquête, recto verso, un par équipe.
 - `fiches-historiques.pdf` : les six fiches historiques, un jeu par équipe.
-- `guide-animateur.pdf` : le guide d'une page pour l'animateur.
+- `guide-animateur.pdf` : le guide de l'animateur (la page 2 contient la solution et le décodage des indices).
 
 ## Crédits
 
