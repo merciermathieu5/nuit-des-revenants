@@ -1481,7 +1481,9 @@ function telechargerDocument(d, etat, avant){
 }
 function ouvrirDocument(d, etat){
   if(telechargeurArtefact) return telechargerDocument(d, etat);   /* aperçu claude.ai : pas de nouvel onglet */
-  const u = docsEnLigne[d.id] ? d.fichier : urlDocument(d.id); if(!u) return false;
+  /* Sur le site : le fichier du site, avec un paramètre unique pour toujours obtenir la dernière version
+     (GitHub garde un PDF 10 minutes dans la cache du navigateur). Hors ligne : la copie intégrée. */
+  const u = docsEnLigne[d.id] ? d.fichier+"?v="+Date.now() : urlDocument(d.id); if(!u) return false;
   let w = null;
   try{ w = window.open(u, "_blank"); }catch(e){}
   if(w){ if(etat) etat(d.titre+" : ouvert dans un nouvel onglet."); return true; }
